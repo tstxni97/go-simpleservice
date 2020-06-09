@@ -29,7 +29,8 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/", Alive)
 	r.HandleFunc("/calculator.sum", Sum).Methods("POST")
-	r.HandleFunc("/calculator.mul", Sum).Methods("POST")
+	r.HandleFunc("/calculator.mul", Mul).Methods("POST")
+	r.HandleFunc("/calculator.sub", Sub).Methods("POST")
 	r.Use(mux.CORSMethodMiddleware(r))
 
 	http.Handle("/", r)
@@ -76,6 +77,25 @@ func Mul(w http.ResponseWriter, req *http.Request) {
 	}
 
 	result := reqBody.A * reqBody.B
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"result": result,
+	})
+}
+
+func Sub(w http.ResponseWriter, req *http.Request) {
+
+	decoder := json.NewDecoder(req.Body)
+
+	// decode request
+	var reqBody ReqBody
+	err := decoder.Decode(&reqBody)
+	if err != nil {
+		err = errors.Wrap(err, "Malformed request")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	result := reqBody.A - reqBody.B
 	WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"result": result,
 	})
