@@ -59,3 +59,30 @@ func TestCalculatorSum(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, expected, resBody.Result)
 }
+
+func TestCalculatorMul(t *testing.T) {
+	t.Parallel()
+
+	var jsonReq = []byte(`{"a": 100, "b": 200.2}`)
+	req, err := http.NewRequest("POST", "/calculator.mul", bytes.NewBuffer(jsonReq))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(Mul)
+
+	handler.ServeHTTP(rr, req)
+
+	expected := float64(20020)
+
+	var resBody ResBody
+
+	if err := json.Unmarshal(rr.Body.Bytes(), &resBody); err != nil {
+		panic(err)
+	}
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, expected, resBody.Result)
+}
