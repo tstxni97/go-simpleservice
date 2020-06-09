@@ -15,6 +15,12 @@ type ResBody struct {
 	Result float64 `json:"result"`
 }
 
+const float64EqualityThreshold = 1e-9
+
+func almostEqual(a, b float64) bool {
+	return math.Abs(a-b) <= float64EqualityThreshold
+}
+
 func TestGetRequest(t *testing.T) {
 	t.Parallel()
 
@@ -103,7 +109,7 @@ func TestCalculatorSub(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	expected := float64(100.2)
+	expected := float64(-100.2)
 
 	var resBody ResBody
 
@@ -111,10 +117,32 @@ func TestCalculatorSub(t *testing.T) {
 		panic(err)
 	}
 
-	const epsilon = 1e-9 // Margin of error
-	if whole, frac := math.Modf(math.Abs(resBody.Result)); frac < epsilon || frac > 1.0-epsilon {
-		assert.Equal(t, http.StatusOK, rr.Code)
-		assert.Equal(t, expected, whole)
+	assert.Equal(t, true, almostEqual(expected, resBody.Result))
+}
+
+func TestCalculatorDiv(t *testing.T) {
+	t.Parallel()
+
+	var jsonReq = []byte(`{"a": 100, "b": 200.2}`)
+	req, err := http.NewRequest("POST", "/calculator.div", bytes.NewBuffer(jsonReq))
+	if err != nil {
+		panic(err)
 	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(Div)
+
+	handler.ServeHTTP(rr, req)
+
+	expected := float64(100 / 200.2)
+
+	var resBody ResBody
+
+	if err := json.Unmarshal(rr.Body.Bytes(), &resBody); err != nil {
+		panic(err)
+	}
+
+	assert.Equal(t, true, almostEqual(expected, resBody.Result))
 
 }
