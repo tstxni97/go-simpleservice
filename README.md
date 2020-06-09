@@ -10,3 +10,4 @@ Given the current design, what could be a problem?
 
 - Also didn't see the high-level system architecture in document
 
+- I would containerized proxy server and the service into two different containers.
