@@ -2,12 +2,17 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type ResBody struct {
+	Result float64 `json:"result"`
+}
 
 func TestGetRequest(t *testing.T) {
 	t.Parallel()
@@ -39,12 +44,18 @@ func TestCalculatorSum(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(Alive)
+	handler := http.HandlerFunc(Sum)
 
 	handler.ServeHTTP(rr, req)
 
-	expected := `{"result": 300.2}`
+	expected := 300.2
+
+	var resBody ResBody
+
+	if err := json.Unmarshal(rr.Body.Bytes(), &resBody); err != nil {
+		panic(err)
+	}
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, expected, rr.Body.String())
+	assert.Equal(t, expected, resBody.Result)
 }
