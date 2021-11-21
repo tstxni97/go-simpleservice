@@ -162,18 +162,19 @@ func migrate(db *gorm.DB) {
 }
 
 func create(db *gorm.DB) {
-	card1 := 
-
-	card2 := &models.CreditCard{
-		Number: "22222222222222",
-	}
 
 	usr := &models.User{
-		Name:        "Deeprom",
-		Email:       "deeprom@bridgeasiagroup.com",
-		Age:         21,
-		Birthday:    &time.Time{},
-		CreditCards: []models.CreditCard{*card1, *card2},
+		Name:     "Deeprom",
+		Email:    "deeprom@bridgeasiagroup.com",
+		Age:      21,
+		Birthday: &time.Time{},
+		CreditCards: []models.CreditCard{
+			{
+				Number: "11111111111111",
+			},
+			{
+				Number: "22222222222222",
+			}},
 	}
 	db.Create(usr)
 
