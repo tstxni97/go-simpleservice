@@ -1,13 +1,6 @@
 # go-simpleservice
 
-Given the current design, what could be a problem? 
+Project structure guidline https://dev.to/jinxankit/go-project-structure-and-guidelines-4ccm
 
-- Personally would use Nginx for proxy server
+`go run main.go`
 
-- `calculator.sum` is a weird naming for url path
-
-- Personally would do `/calculator` and put operation to JSON body `{ "a": 100, "b": 200.2, "ops": "mul"}` 
-
-- Also didn't see the high-level system architecture in document
-
-- I would containerized proxy server and the service into two different containers.
