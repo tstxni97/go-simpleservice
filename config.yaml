@@ -1,0 +1,4 @@
+MIGRATE: true
+
+db:
+  local: "host=localhost user=dp dbname=gorm port=5432 sslmode=disable"
