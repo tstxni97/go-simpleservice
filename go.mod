@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/gorilla/mux v1.8.0
 	github.com/pkg/errors v0.9.1
+	github.com/spf13/viper v1.9.0
 	github.com/stretchr/testify v1.7.0
 	gorm.io/driver/postgres v1.2.2
 	gorm.io/gorm v1.22.3
@@ -32,7 +33,6 @@ require (
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.9.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect

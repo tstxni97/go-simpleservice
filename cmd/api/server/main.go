@@ -221,6 +221,7 @@ func migrate(db *gorm.DB) {
 	db.AutoMigrate(&models.Toy{})
 }
 
+// Generate a user to test
 func create(db *gorm.DB) {
 
 	usr := &models.User{
