@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/spf13/viper"
@@ -31,18 +34,38 @@ func WriteJSON(w http.ResponseWriter, statusCode int, data map[string]interface{
 	}
 }
 
+var (
+	// global db struct
+	db   *gorm.DB
+	wait time.Duration
+)
+
 func main() {
 
-	MIGRATE := viper.GetBool("MIGRATE")
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AutomaticEnv()
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(fmt.Errorf("unable to read config file: %w ", err))
+	}
 
-	dsn := "host=localhost user=dp dbname=gorm port=5432 sslmode=disable"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	MIGRATE := viper.GetBool("MIGRATE")
+	ENV := viper.GetString("ENV")
+	db_connect := viper.GetString("db.local")
+	fmt.Println("migrate", MIGRATE)
+	fmt.Println("ENV is ", ENV)
+
+	db, err = gorm.Open(postgres.Open(db_connect), &gorm.Config{})
 	if err != nil {
 		panic("Fail to connect db")
 	}
 
-	if MIGRATE == true {
+	if MIGRATE {
+		fmt.Println("migrating ORM")
 		migrate(db)
+		create(db)
 	}
 
 	sqlDB, err := db.DB()
@@ -56,19 +79,52 @@ func main() {
 	// SetMaxOpenConns sets the maximum number of open connections to the database.
 	sqlDB.SetMaxOpenConns(100)
 
-	create(db)
-
 	r := mux.NewRouter()
 	r.HandleFunc("/", Alive)
 	r.HandleFunc("/calculator/sum", Sum).Methods("POST")
 	r.HandleFunc("/calculator/mul", Mul).Methods("POST")
 	r.HandleFunc("/calculator/sub", Sub).Methods("POST")
 	r.HandleFunc("/calculator/div", Div).Methods("POST")
+	r.HandleFunc("/users", GetUserByID).Methods("GET", "OPTIONS").Queries("id", "{id}")
 	r.Use(mux.CORSMethodMiddleware(r))
 
+	srv := &http.Server{
+		Addr: "0.0.0.0:3000",
+		// Good practice to set timeouts to avoid Slowloris attacks.
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      r, // Pass our instance of gorilla/mux in.
+	}
+
 	http.Handle("/", r)
-	fmt.Println("Starting up on 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	fmt.Println("Starting up on 3000")
+	// Run our server in a goroutine so that it doesn't block.
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Println(err)
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
+	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
+	signal.Notify(c, os.Interrupt)
+
+	// Block until we receive our signal.
+	<-c
+
+	// Create a deadline to wait for.
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	// Doesn't block if no connections, but will otherwise wait
+	// until the timeout deadline.
+	srv.Shutdown(ctx)
+	// Optionally, you could run srv.Shutdown in a goroutine and block on
+	// <-ctx.Done() if your application should wait for other services
+	// to finalize based on context cancellation.
+	log.Println("shutting down")
+	os.Exit(0)
 }
 
 func Alive(w http.ResponseWriter, req *http.Request) {
@@ -87,6 +143,7 @@ func Sum(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		err = errors.Wrap(err, "Malformed request")
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -106,6 +163,7 @@ func Mul(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		err = errors.Wrap(err, "Malformed request")
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -125,6 +183,7 @@ func Sub(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		err = errors.Wrap(err, "Malformed request")
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -145,6 +204,7 @@ func Div(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		err = errors.Wrap(err, "Malformed request")
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -178,4 +238,28 @@ func create(db *gorm.DB) {
 	}
 	db.Create(usr)
 
+}
+
+func GetUserByID(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if req.Method == http.MethodOptions {
+		return
+	}
+	ID := req.URL.Query().Get("id")
+	// If the primary key is a string (for example, like a uuid), the query will be written as follows:
+	// db.First(&user, "id = ?", "1b74413f-f3b8-409f-ac47-e8c062e3472a")
+	usr := &models.User{}
+	if err := db.First(usr, ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			err = errors.Wrap(err, "")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"code":   "200",
+		"result": usr,
+	})
 }
